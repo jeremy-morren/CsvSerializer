@@ -17,40 +17,59 @@ namespace CsvDocument
         /// with <paramref name="text"/>
         /// </summary>
         /// <param name="text"></param>
-        public StringReader(string text)
+        public StringReader(string text, string aggregate, string delimiter)
         {
+            int i = System.Text.RegularExpressions.Regex.Matches(text, aggregate).Count;
+            if (delimiter == aggregate)
+                throw new ArgumentOutOfRangeException(null, $"{nameof(delimiter)} must be different to {aggregate}");
+            if (System.Text.RegularExpressions.Regex.Matches(text, aggregate).Count % 2 != 0)
+                throw new ArgumentOutOfRangeException(nameof(aggregate),aggregate,
+                    $"{nameof(aggregate)} must occur an event number of times");
             CurrentIndex = 0;
-            Text = text; //Ensure there is another character at the very end
+            Aggregate = aggregate;
+            Delimiter = delimiter;
+            Text = text;
+            //Ensure it ends with a delimiter (for simplicity)
+            if (!Text.EndsWith(delimiter))
+                Text += delimiter;
         }
+
+        public string Aggregate { get; private set; }
+
+        public string Delimiter { get; private set; }
 
         /// <summary>
         /// Reads string to <paramref name="index"/>
         /// </summary>
         /// <param name="index">Index to read to</param>
-        public string ReadToIndex(int index)
+        string ReadToIndex(int index, int move)
         {
-            index = index == -1 ? Text.Length : index;
-            //index = index >= Text.Length ? (Text.Length - 1) : index;
+            index = index == -1 ? (Text.Length - 1) : index;
             string s = Text.Splice(CurrentIndex, index);
-            CurrentIndex = index + 1;
+            CurrentIndex = index + move;
             return s;
         }
 
         /// <summary>
-        /// Reads to the first occurence
-        /// of any member of <paramref name="chars"/>
+        /// Reads to the next
+        /// occurrence of either <see cref="Aggregate"/>
+        /// or <see cref="Delimiter"/>
         /// </summary>
-        public string Read(string[] chars)
+        string ReadString()
         {
-            List<KeyValuePair<string, int>> index = new List<KeyValuePair<string, int>>();
-            int length = Text.Length;
-            char a = Text[CurrentIndex];
-            foreach (string c in chars)
-                index.Add(new KeyValuePair<string,int>(c,Text.IndexOf(c, CurrentIndex)));
-            if (index.Count(e => e.Value != -1) == 0)
-                throw new InvalidOperationException("No character found!");
-            KeyValuePair<string, int> pair = index.Where(e => e.Value != -1).OrderBy(e => e.Value).First();
-            return ReadToIndex(pair.Value + (pair.Key.Length - 1));
+            int[] indexes = new[]
+            {
+                Text.IndexOf(Aggregate,CurrentIndex),
+                Text.IndexOf(Delimiter,CurrentIndex)
+            };
+            //This should never happen but it is good practice
+            if (indexes[0] == -1 && indexes[1] == -1)
+                throw new Exception(null);
+            //If Aggregate is -1 or after delimiter
+            if (indexes[0] == -1 || indexes[0] > indexes[1])
+                return ReadToIndex(indexes[1],Delimiter.Length);
+            //Otherwise read to Aggregate
+            return ReadToIndex(indexes[0],Aggregate.Length);
         }
 
         /// <summary>
@@ -58,14 +77,52 @@ namespace CsvDocument
         /// of <paramref name="c"/>
         /// </summary>
         /// <param name="c"><see cref="string"/> to read to</param>
-        public string Read(string c)
-            => ReadToIndex(Text.IndexOf(c, CurrentIndex));
+        string ReadString(string c)
+            => ReadToIndex(Text.IndexOf(c, CurrentIndex), c.Length);
 
         /// <summary>
-        /// Reads to the next character
+        /// Reads to the End of the next aggregate
+        /// </summary>
+        /// <param name="inAggregate">Indicates whether we are currently within an Aggregate</param>
+        /// <returns></returns>
+        string ReadToAggregate(bool inAggregate)
+        {
+            //Optimization:  If we are inAggregate
+            //then just skip ahead to the next instance
+            string str = inAggregate ? ReadString(Aggregate) : ReadString();
+            if (str.StartsWith(Aggregate) || str.EndsWith(Aggregate))
+                return str + ReadToAggregate(!inAggregate); //Recursively execute
+            return str; //We have reached the end of the Block, return value
+        }
+
+        /// <summary>
+        /// Removes <see cref="Delimiter"/>
+        /// from end of <paramref name="block"/>
+        /// </summary>
+        /// <param name="block">Raw Value</param>
+        /// <returns>Block Value</returns>
+        string GetValue(string block)
+            => block.Length == Delimiter.Length ? null : block.Splice(0, block.Length - 2);
+
+        /// <summary>
+        /// Reads the next Block of Text
         /// </summary>
         public string Read()
-            => ReadToIndex(CurrentIndex);
+        {
+            string block = ReadString();
+            //Normal Occurrence (i.e. no aggregate)
+            //Chop off Delimiter
+            if (!block.StartsWith(Aggregate) && !block.EndsWith(Aggregate))
+                return GetValue(block);
+            //Otherwise we are in an aggregate
+            block += ReadToAggregate(true);
+            //Chop off Delimiter
+            block = GetValue(block);
+            //Chop off Aggregates
+            if (block.StartsWith(Aggregate) && block.EndsWith(Aggregate))
+                return block.Splice(Aggregate.Length, block.Length - 1 - Aggregate.Length);
+            return block;
+        }
 
         /// <summary>
         /// Class Text to Read

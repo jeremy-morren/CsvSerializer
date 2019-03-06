@@ -7,7 +7,7 @@ using System.Reflection;
 
 namespace CsvDocument
 {
-    public class CsvSerializer<T>
+    public class CsvSerializer<T> where T : class, new()
     {
         public CsvSerializer()
         {
@@ -29,59 +29,31 @@ namespace CsvDocument
 
         public Type ObjectType { get => typeof(T); }
 
+        public CsvSchema<T> Schema { get; private set; }
+
         public T[] DeSerialize(string Text)
         {
-            //Ensure it ends with LineDelimiter (to avoid overflow issues)
-            if (!Text.EndsWith(LineDelimiter))
-                Text += LineDelimiter;
-            bool inAggregate = false; //Tracks whether we are currently within an Aggregate 'string'
-            StringReader reader = new StringReader(Text);
             List<List<string>> Csv = new List<List<string>>(); //Csv File (as string)
-            List<string> currentLine = new List<string>();
-            int currentCellStart = 0;
-            while (!reader.EOF)
+            StringReader fileReader = new StringReader(Text, Aggregate, LineDelimiter);
+            while (!fileReader.EOF)
             {
-                //If we are in aggregate skip straight to the next occurrence
-                //Otherwise Search for the next occurrence of any item
-                string cell = inAggregate ? reader.Read(Aggregate) : 
-                    reader.Read(new[] { Aggregate, Delimiter, LineDelimiter });
-                //If it starts with or ends with Aggregate then change current Status
-                if (cell.StartsWith(Aggregate) || cell.EndsWith(Aggregate))
-                    inAggregate = !inAggregate;
-                else if (!inAggregate)
-                {
-                    //Get the length of the separation (Delimiter and LineDelimiter may be 2 different lengths)
-                    int endLength = cell.EndsWith(Delimiter) ? Delimiter.Length : LineDelimiter.Length;
-                    //CurrentIndex is always the first Character of the next cell
-                    //Add the Cell
-                    currentLine.Add(Text.Splice(currentCellStart, reader.CurrentIndex - endLength - 1));
-                    //Reset currentCell
-                    currentCellStart = reader.CurrentIndex;
-                    //If we have reached the end of a line
-                    //then add to overall csv and reset
-                    if (LineEnd(Text, reader.CurrentIndex))
-                    {
-                        Csv.Add(currentLine);
-                        currentLine = new List<string>();
-                    }
-                }
+                Csv.Add(new List<string>());
+                StringReader lineReader = new StringReader(fileReader.Read(), Aggregate, Delimiter);
+                //Add Cell (replace double Aggregate with single)
+                while (!lineReader.EOF)
+                    Csv.Last().Add(lineReader.Read()?.Replace(Aggregate + Aggregate, Aggregate));
             }
-            //Now Serialize into T
-            List<KeyValuePair<System.Reflection.PropertyInfo, int>> columns =
-                new List<KeyValuePair<System.Reflection.PropertyInfo, int>>();
-            System.Reflection.PropertyInfo[] propertyInfo = typeof(T).GetProperties();
-            //Get the Column Index of each Property
-            for (int i = 0; i < Csv[0].Count; i++)
-                columns.Add(new KeyValuePair<System.Reflection.PropertyInfo, int>
-                    (propertyInfo.First(e => e.Name == Csv[0][i]), i));
-            List<Product> products = new List<Product>();
+            Schema = new CsvSchema<T>(Csv[0]);
+            //Serialize into T
+            List<T> list = new List<T>();
             for (int i = 1; i < Csv.Count; i++)
             {
-                Product product = new Product();
-                foreach (var x in columns)
-                    x.Key.SetValue(product, Csv[i][x.Value]);
-                products.Add(product);
+                list.Add(new T());
+                foreach (CsvColumn column in Schema.ColumnSchema)
+                    if (column.ColumnNumber < Csv[i].Count)
+                        column.Property.SetValue(list.Last(),Csv[i][column.ColumnNumber]);
             }
+            return list.ToArray();
         }
 
         private string GetCellValue(string Text, int startIndex, int endIndex)
@@ -105,7 +77,67 @@ namespace CsvDocument
             return Text.Substring(index + 1, LineDelimiter.Length) == LineDelimiter;
         }
 
+        [CsvColumn("Test")]
+        public string str { get; set; }
+    }
+
+    /// <summary>
+    /// Represents CSV Column Properties
+    /// </summary>
+    [AttributeUsage(AttributeTargets.Property)]
+    class CsvColumnAttribute : Attribute
+    {
+        public CsvColumnAttribute(string columnName)
+        {
+            ColumnName = columnName;
+        }
+        public string ColumnName { get; private set; }
+    }
+
+    public class CsvSchema<T>
+    {
+        public CsvSchema(List<string> HeaderRow)
+        {
+            if (HeaderRow.Distinct().Count() != HeaderRow.Count())
+                throw new ArgumentOutOfRangeException(nameof(HeaderRow), null, "Duplicate Column Names");
+            ColumnSchema = new List<CsvColumn>();
+            PropertyInfo[] propertyInfo =typeof(T).GetProperties();
+            foreach (PropertyInfo property in propertyInfo)
+            {
+                string columnName = GetColumnName(property);
+                int index = HeaderRow.IndexOf(columnName);
+                if (index == -1)
+                    throw new ArgumentOutOfRangeException(nameof(columnName), columnName, "No Column Found in CSV Document");
+                ColumnSchema.Add(new CsvColumn(property, index));
+            }
+        }
+
+        public List<CsvColumn> ColumnSchema { get; private set; }
+
+        public string GetColumnName(PropertyInfo propertyInfo)
+        {
+            try
+            {
+                return propertyInfo.GetCustomAttribute<CsvColumnAttribute>(true).ColumnName;
+            }
+            catch (ArgumentNullException)
+            {
+                return propertyInfo.Name;
+            }
+        }
     }
 
     class CsvColumn
+    {
+        public CsvColumn(PropertyInfo property, int columnNumber)
+        {
+            Property = property;
+            ColumnNumber = columnNumber;
+        }
+
+        public PropertyInfo Property { get; private set; }
+
+        public int ColumnNumber { get; private set; }
+    }
+
 }

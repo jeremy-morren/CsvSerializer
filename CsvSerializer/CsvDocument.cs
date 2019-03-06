@@ -7,15 +7,36 @@ using System.Reflection;
 
 namespace CsvDocument
 {
+    /// <summary>
+    /// Class used for
+    /// working with CSV Files
+    /// </summary>
+    /// <typeparam name="T">Class to Serialize/Deserialize to</typeparam>
     public class CsvSerializer<T> where T : class, new()
     {
+        /// <summary>
+        /// Initializes a new instance
+        /// using Default CSV Special Characters
+        /// </summary>
         public CsvSerializer()
         {
+            Schema = new CsvSchema<T>();
             Delimiter = ",";
             Aggregate = "\"";
             LineDelimiter = "\r\n";
         }
 
+        /// <summary>
+        /// Initializes a new Class
+        /// with Custom CSV Characters
+        /// </summary>
+        /// <param name="delimiter">Character used to Separate Cells</param>
+        /// <param name="aggregate">
+        /// Character used to surround a cell that 
+        /// contains either <paramref name="delimiter"/>
+        /// or <paramref name="lineDelimiter"/>
+        /// </param>
+        /// <param name="lineDelimiter">Character that separates Lines</param>
         public CsvSerializer(string delimiter, string aggregate, string lineDelimiter) : this()
         {
             Delimiter = delimiter;
@@ -23,18 +44,41 @@ namespace CsvDocument
             LineDelimiter = lineDelimiter;
         }
 
+        /// <summary>
+        /// Character used to Separate Csv Cells
+        /// </summary>
         public string Delimiter { get; set; }
+
+        /// <summary>
+        /// Character used to surround a cell
+        /// that contains either <see cref="Delimiter"/>
+        /// or <see cref="LineDelimiter"/>
+        /// </summary>
         public string Aggregate { get; set; }
+
+        /// <summary>
+        /// Character used to Separate Lines
+        /// </summary>
         public string LineDelimiter { get; set; }
 
-        public Type ObjectType { get => typeof(T); }
-
+        /// <summary>
+        /// Gets the Csv Schema for
+        /// <typeparamref name="T"/>
+        /// </summary>
         public CsvSchema<T> Schema { get; private set; }
 
-        public T[] DeSerialize(string Text)
+        /// <summary>
+        /// Deserializers <paramref name="CsvText"/>
+        /// in Array of <typeparamref name="T"/>
+        /// </summary>
+        /// <param name="CsvText">Csv File Text</param>
+        /// <returns>Array of <typeparamref name="T"/> with values from CSV File</returns>
+        public T[] DeSerialize(string CsvText)
         {
+            if (CsvText == string.Empty)
+                return new T[0];
             List<List<string>> Csv = new List<List<string>>(); //Csv File (as string)
-            StringReader fileReader = new StringReader(Text, Aggregate, LineDelimiter);
+            StringReader fileReader = new StringReader(CsvText, Aggregate, LineDelimiter);
             while (!fileReader.EOF)
             {
                 Csv.Add(new List<string>());
@@ -43,101 +87,52 @@ namespace CsvDocument
                 while (!lineReader.EOF)
                     Csv.Last().Add(lineReader.Read()?.Replace(Aggregate + Aggregate, Aggregate));
             }
-            Schema = new CsvSchema<T>(Csv[0]);
+            //Get the Schema for this file
+            CsvSchema<T> DocumentSchema = new CsvSchema<T>(Csv[0]);
             //Serialize into T
             List<T> list = new List<T>();
             for (int i = 1; i < Csv.Count; i++)
             {
                 list.Add(new T());
-                foreach (CsvColumn column in Schema.ColumnSchema)
+                foreach (CsvColumn column in DocumentSchema.ColumnSchema)
                     if (column.ColumnNumber < Csv[i].Count)
                         column.Property.SetValue(list.Last(),Csv[i][column.ColumnNumber]);
             }
             return list.ToArray();
         }
 
-        private string GetCellValue(string Text, int startIndex, int endIndex)
+        public string Serialize(T[] data)
         {
-            //Get the Raw Cell Value
-            string cellValue = endIndex < startIndex ? string.Empty //Empty Cell
-                    : Text.Splice(startIndex, endIndex);
-            //If it is surrounded by aggregate then trim it
-            if (cellValue.StartsWith(Aggregate) && cellValue.EndsWith(Aggregate))
-                cellValue = cellValue.Splice(Aggregate.Length, cellValue.Length - Aggregate.Length - 1);
-            //Add the Cell (replace Double aggregate with single)
-            return cellValue.Replace(Aggregate + Aggregate, Aggregate);
+            List<string> lines = new List<string>();
+            //Add the Header Row
+            lines.Add(string.Join(Delimiter,
+                from c in Schema.ColumnSchema
+                orderby c.ColumnNumber
+                select ConvertToCsvCell(c.ColumnName)));
+            //Add all lines
+            //For Each line convert it to a string
+            //For Each cell use ConvertToCsvCell
+            lines.AddRange(
+                from t in data
+                select string.Join(Delimiter,
+                    from e in Schema.ColumnSchema
+                    orderby e.ColumnNumber
+                    select ConvertToCsvCell(e.Property.GetValue(t)?.ToString() ?? string.Empty)
+                ));
+            //Ensure it ends with a LineDelimiter
+            return string.Join(LineDelimiter, lines) + LineDelimiter;
         }
 
-        private bool LineEnd(string Text, int index)
+        /// <summary>
+        /// Converts <paramref name="val"/>
+        /// to a Csv-formatted Cell
+        /// </summary>
+        /// <param name="val">Value to Convert</param>
+        string ConvertToCsvCell(string val)
         {
-            //Check if we are the end of the file
-            if (index == Text.Length - LineDelimiter.Length - 1)
-                return true;
-            //Check if the next characters equals LineDelimiter
-            return Text.Substring(index + 1, LineDelimiter.Length) == LineDelimiter;
-        }
-
-        [CsvColumn("Test")]
-        public string str { get; set; }
-    }
-
-    /// <summary>
-    /// Represents CSV Column Properties
-    /// </summary>
-    [AttributeUsage(AttributeTargets.Property)]
-    class CsvColumnAttribute : Attribute
-    {
-        public CsvColumnAttribute(string columnName)
-        {
-            ColumnName = columnName;
-        }
-        public string ColumnName { get; private set; }
-    }
-
-    public class CsvSchema<T>
-    {
-        public CsvSchema(List<string> HeaderRow)
-        {
-            if (HeaderRow.Distinct().Count() != HeaderRow.Count())
-                throw new ArgumentOutOfRangeException(nameof(HeaderRow), null, "Duplicate Column Names");
-            ColumnSchema = new List<CsvColumn>();
-            PropertyInfo[] propertyInfo =typeof(T).GetProperties();
-            foreach (PropertyInfo property in propertyInfo)
-            {
-                string columnName = GetColumnName(property);
-                int index = HeaderRow.IndexOf(columnName);
-                if (index == -1)
-                    throw new ArgumentOutOfRangeException(nameof(columnName), columnName, "No Column Found in CSV Document");
-                ColumnSchema.Add(new CsvColumn(property, index));
-            }
-        }
-
-        public List<CsvColumn> ColumnSchema { get; private set; }
-
-        public string GetColumnName(PropertyInfo propertyInfo)
-        {
-            try
-            {
-                return propertyInfo.GetCustomAttribute<CsvColumnAttribute>(true).ColumnName;
-            }
-            catch (ArgumentNullException)
-            {
-                return propertyInfo.Name;
-            }
+            if (!val.Contains(Aggregate) && !val.Contains(Delimiter) && !val.Contains(LineDelimiter))
+                return val;
+            return $"{Aggregate}{val.Replace(Aggregate, Aggregate + Aggregate)}{Aggregate}";
         }
     }
-
-    class CsvColumn
-    {
-        public CsvColumn(PropertyInfo property, int columnNumber)
-        {
-            Property = property;
-            ColumnNumber = columnNumber;
-        }
-
-        public PropertyInfo Property { get; private set; }
-
-        public int ColumnNumber { get; private set; }
-    }
-
 }

@@ -7,10 +7,11 @@ using System.Threading.Tasks;
 namespace CsvDocument
 {
     /// <summary>
-    /// Class That Reads through string
-    /// using provided Delimiters
+    /// Reads blocks form text
+    /// separated by <see cref="Delimiter"/>
+    /// with grouping by <see cref="Aggregate"/>
     /// </summary>
-    class StringReader
+    internal class StringReader
     {
         /// <summary>
         /// Initializes <see cref="StringReader"/>
@@ -34,8 +35,15 @@ namespace CsvDocument
                 Text += delimiter;
         }
 
+        /// <summary>
+        /// String that denotes a 'string'
+        /// (i.e. that encloses a Delimiter)
+        /// </summary>
         public string Aggregate { get; private set; }
 
+        /// <summary>
+        /// Delimiter that separates Blocks
+        /// </summary>
         public string Delimiter { get; private set; }
 
         /// <summary>
@@ -125,7 +133,7 @@ namespace CsvDocument
         }
 
         /// <summary>
-        /// Class Text to Read
+        /// Text to Read
         /// </summary>
         public string Text { get; private set; }
 

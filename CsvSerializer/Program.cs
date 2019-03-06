@@ -32,10 +32,10 @@ namespace CsvDocument
 
     class Product
     {
-        [CsvColumn("Group Code")]
-        public string Groupcode { get; set; }
         [CsvColumn("Product Code")]
         public string Code { get; set; }
+        [CsvColumn("Group Code")]
+        public string Groupcode { get; set; }
         [CsvColumn("Product Description")]
         public string Description { get; set; }
     }
@@ -46,7 +46,8 @@ namespace CsvDocument
         {
             CsvSerializer<Product> csvSerializer = new CsvSerializer<Product>();
             Product[] products = csvSerializer.DeSerialize(System.IO.File.ReadAllText("Test.csv"));
-            
+            string csv = csvSerializer.Serialize(products);
+            Console.Write(csv);
             int i = 0;
         }
     }

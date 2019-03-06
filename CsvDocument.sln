@@ -3,7 +3,7 @@ Microsoft Visual Studio Solution File, Format Version 12.00
 # Visual Studio 15
 VisualStudioVersion = 15.0.28010.2046
 MinimumVisualStudioVersion = 10.0.40219.1
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "CsvSerializer", "CsvSerializer\CsvSerializer.csproj", "{694038A2-D68D-468F-BE88-DF446E3246EE}"
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "CsvDocument", "CsvSerializer\CsvDocument.csproj", "{694038A2-D68D-468F-BE88-DF446E3246EE}"
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution

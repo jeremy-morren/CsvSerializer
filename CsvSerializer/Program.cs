@@ -21,6 +21,8 @@ namespace CsvDocument
         [CsvColumn("Instance Number")]
         //[CsvIgnore]
         public int InstanceNumber { get; set; }
+
+        public DateTime Date { get; set; }
     }
 
     class Program
@@ -34,7 +36,7 @@ namespace CsvDocument
             csvSerializer.CsvStyle = new CsvStyle(CsvCharacterStyle.WindowsText);
             string csv = csvSerializer.Serialize(products);
             Console.Write(csv);
-            int i = 0;
+            Console.ReadKey();
         }
     }
 }

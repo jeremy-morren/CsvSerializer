@@ -190,8 +190,10 @@ namespace CsvDocument
             //to do this I haven't found it
             if (property.PropertyType == typeof(string))
                 return val;
-            if (property.PropertyType == typeof(int))
+            if (property.PropertyType == typeof(Int32))
                 return Convert.ToInt32(val);
+            if (property.PropertyType == typeof(Int64))
+                return Convert.ToInt64(val);
             if (property.PropertyType == typeof(bool))
                 return Convert.ToBoolean(val);
             if (property.PropertyType == typeof(decimal))
@@ -202,8 +204,9 @@ namespace CsvDocument
                 return Convert.ToDateTime(val);
             //If we reach this far then we have an unknown type
             throw new InvalidOperationException(
-                nameof(property.PropertyType) + " is not supported at this time. " +
-                "Consider using a code behind property");
+                $"Property Type {property.PropertyType.Name} " +
+                $"is not supported at this time. " +
+                $"Consider using a code behind property");
         }
     }
 }

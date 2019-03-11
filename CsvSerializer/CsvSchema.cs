@@ -174,14 +174,8 @@ namespace CsvDocument
         /// </returns>
         public static string GetCsvColumnName(this PropertyInfo property)
         {
-            try
-            {
-                return property.GetCustomAttribute<CsvColumnAttribute>(true).ColumnName;
-            }
-            catch (NullReferenceException)
-            {
-                return property.Name;
-            }
+            CsvColumnAttribute attr = property.GetCustomAttribute<CsvColumnAttribute>(true);
+            return attr == null ? property.Name : attr.ColumnName;
         }
 
         /// <summary>
@@ -195,14 +189,8 @@ namespace CsvDocument
         /// </returns>
         public static int GetCsvColumnNumber(this PropertyInfo property)
         {
-            try
-            {
-                return property.GetCustomAttribute<CsvColumnAttribute>(true).ColumnNumber;
-            }
-            catch (NullReferenceException)
-            {
-                return -1;
-            }
+            CsvColumnAttribute attr = property.GetCustomAttribute<CsvColumnAttribute>(true);
+            return attr == null ? -1 : attr.ColumnNumber;
         }
 
         /// <summary>

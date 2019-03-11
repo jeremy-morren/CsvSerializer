@@ -175,7 +175,7 @@ namespace CsvDocument
         public static string GetCsvColumnName(this PropertyInfo property)
         {
             CsvColumnAttribute attr = property.GetCustomAttribute<CsvColumnAttribute>(true);
-            return attr == null ? property.Name : attr.ColumnName;
+            return attr == null || attr.ColumnName == null ? property.Name : attr.ColumnName;
         }
 
         /// <summary>

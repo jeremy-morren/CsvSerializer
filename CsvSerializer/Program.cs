@@ -6,46 +6,32 @@ using System.Threading.Tasks;
 
 namespace CsvDocument
 {
-    public static class StringExtensions
-    {
-        /// <summary>
-        /// Returns a string
-        /// starting at <paramref name="startIndex"/>
-        /// and ending at <paramref name="endIndex"/>
-        /// </summary>
-        /// <param name="startIndex">Starting Index</param>
-        /// <param name="endIndex">Ending Index</param>
-        public static string Splice(this string str, int startIndex, int endIndex)
-        {
-            if (startIndex < 0 || startIndex >= str.Length)
-                throw new ArgumentOutOfRangeException(nameof(startIndex), startIndex,
-                    "Parameter must refer to a position within the string");
-            if (endIndex < 0 || endIndex >= str.Length)
-                throw new ArgumentOutOfRangeException(nameof(endIndex), endIndex, 
-                    "Parameter must refer to a position within the string");
-            if (endIndex < startIndex)
-                throw new ArgumentOutOfRangeException(nameof(endIndex), endIndex,
-                    $"{nameof(endIndex)} must be greater than or equal to {nameof(startIndex)}");
-            return str.Substring(startIndex, endIndex - startIndex + 1);
-        }
-    }
 
     class Product
     {
-        [CsvColumn("Product Code")]
+        [CsvColumn("Product Code",1)]
         public string Code { get; set; }
-        [CsvColumn("Group Code")]
+
+        [CsvColumn("Group Code",0)]
         public string Groupcode { get; set; }
-        [CsvColumn("Product Description")]
+
+        [CsvColumn("Product Description",2)]
         public string Description { get; set; }
+
+        [CsvColumn("Instance Number")]
+        //[CsvIgnore]
+        public int InstanceNumber { get; set; }
     }
 
     class Program
     {
         static void Main(string[] args)
         {
-            CsvSerializer<Product> csvSerializer = new CsvSerializer<Product>();
-            Product[] products = csvSerializer.DeSerialize(System.IO.File.ReadAllText("Test.csv"));
+            CsvSerializer<Product> csvSerializer = 
+                new CsvSerializer<Product>();
+            Product[] products = csvSerializer.DeSerialize(
+                System.IO.File.ReadAllText("Test.csv"), true);
+            csvSerializer.CsvStyle = new CsvStyle(CsvCharacterStyle.WindowsText);
             string csv = csvSerializer.Serialize(products);
             Console.Write(csv);
             int i = 0;

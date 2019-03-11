@@ -24,7 +24,7 @@ namespace CsvDocument
             if (delimiter == aggregate)
                 throw new ArgumentOutOfRangeException(null, $"{nameof(delimiter)} must be different to {aggregate}");
             if (System.Text.RegularExpressions.Regex.Matches(text, aggregate).Count % 2 != 0)
-                throw new ArgumentOutOfRangeException(nameof(aggregate),aggregate,
+                throw new ArgumentOutOfRangeException(nameof(aggregate), aggregate,
                     $"{nameof(aggregate)} must occur an event number of times");
             CurrentIndex = 0;
             Aggregate = aggregate;
@@ -75,9 +75,9 @@ namespace CsvDocument
                 throw new Exception(null);
             //If Aggregate is -1 or after delimiter
             if (indexes[0] == -1 || indexes[0] > indexes[1])
-                return ReadToIndex(indexes[1],Delimiter.Length);
+                return ReadToIndex(indexes[1], Delimiter.Length);
             //Otherwise read to Aggregate
-            return ReadToIndex(indexes[0],Aggregate.Length);
+            return ReadToIndex(indexes[0], Aggregate.Length);
         }
 
         /// <summary>
@@ -149,5 +149,33 @@ namespace CsvDocument
         /// </summary>
         public bool EOF
         { get => CurrentIndex == 0 ? false : CurrentIndex == Text.Length; }
+    }
+
+    static class StringExtensions
+    {
+        /// <summary>
+        /// Returns a string
+        /// starting at <paramref name="startIndex"/>
+        /// and ending at <paramref name="endIndex"/>
+        /// </summary>
+        /// <param name="startIndex">Starting Index</param>
+        /// <param name="endIndex">Ending Index</param>
+        /// <remarks>
+        /// Allow me to ask why this isn't included in
+        /// the standard library?
+        /// </remarks>
+        public static string Splice(this string str, int startIndex, int endIndex)
+        {
+            if (startIndex < 0 || startIndex >= str.Length)
+                throw new ArgumentOutOfRangeException(nameof(startIndex), startIndex,
+                    "Parameter must refer to a position within the string");
+            if (endIndex < 0 || endIndex >= str.Length)
+                throw new ArgumentOutOfRangeException(nameof(endIndex), endIndex,
+                    "Parameter must refer to a position within the string");
+            if (endIndex < startIndex)
+                throw new ArgumentOutOfRangeException(nameof(endIndex), endIndex,
+                    $"{nameof(endIndex)} must be greater than or equal to {nameof(startIndex)}");
+            return str.Substring(startIndex, endIndex - startIndex + 1);
+        }
     }
 }

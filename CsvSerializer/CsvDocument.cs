@@ -20,107 +20,141 @@ namespace CsvDocument
         /// </summary>
         public CsvSerializer()
         {
-            Schema = new CsvSchema<T>();
-            Delimiter = ",";
-            Aggregate = "\"";
-            LineDelimiter = "\r\n";
+            //Initialize the Column Schema
+            //with Default Values
+            ColumnSchema = new List<CsvColumn>();
+            foreach (PropertyInfo property in 
+                typeof(T).GetProperties().Where(p => !p.CsvIgnore()))
+                ColumnSchema.Add(new CsvColumn(property));
+            CsvStyle = new CsvStyle(CsvCharacterStyle.Windows);
         }
 
         /// <summary>
-        /// Initializes a new Class
-        /// with Custom CSV Characters
+        /// Initializes with Custom CSV Style
         /// </summary>
-        /// <param name="delimiter">Character used to Separate Cells</param>
-        /// <param name="aggregate">
-        /// Character used to surround a cell that 
-        /// contains either <paramref name="delimiter"/>
-        /// or <paramref name="lineDelimiter"/>
-        /// </param>
-        /// <param name="lineDelimiter">Character that separates Lines</param>
-        public CsvSerializer(string delimiter, string aggregate, string lineDelimiter) : this()
+        /// <paramref name="csvStyle">Template Style</paramref>
+        public CsvSerializer(CsvStyle csvStyle) : this()
         {
-            Delimiter = delimiter;
-            Aggregate = aggregate;
-            LineDelimiter = lineDelimiter;
+            CsvStyle = csvStyle;
         }
 
         /// <summary>
-        /// Character used to Separate Csv Cells
+        /// Gets or sets the 
+        /// Special Characters used when
+        /// Serializing and Deserializing
         /// </summary>
-        public string Delimiter { get; set; }
+        public CsvStyle CsvStyle { get; set; }
 
         /// <summary>
-        /// Character used to surround a cell
-        /// that contains either <see cref="Delimiter"/>
-        /// or <see cref="LineDelimiter"/>
-        /// </summary>
-        public string Aggregate { get; set; }
-
-        /// <summary>
-        /// Character used to Separate Lines
-        /// </summary>
-        public string LineDelimiter { get; set; }
-
-        /// <summary>
-        /// Gets the Csv Schema for
+        /// Gets or sets the Csv Schema for
         /// <typeparamref name="T"/>
         /// </summary>
-        public CsvSchema<T> Schema { get; private set; }
+        public List<CsvColumn> ColumnSchema { get; set; }
 
         /// <summary>
-        /// Deserializers <paramref name="CsvText"/>
+        /// Deserializes <paramref name="CsvText"/>
         /// in Array of <typeparamref name="T"/>
         /// </summary>
         /// <param name="CsvText">Csv File Text</param>
+        /// <param name="UseFirstRowAsHeaders">
+        /// Indicates whether the first row of the Csv File should be used as column Headers
+        /// </param>
         /// <returns>Array of <typeparamref name="T"/> with values from CSV File</returns>
-        public T[] DeSerialize(string CsvText)
+        public T[] DeSerialize(string CsvText, bool UseFirstRowAsHeaders = true)
         {
+            if (!UseFirstRowAsHeaders 
+                && ColumnSchema.Count(e => e.ColumnNumber == -1) > 0)
+                throw new InvalidOperationException("Column Number not set");
             if (CsvText == string.Empty)
                 return new T[0];
             List<List<string>> Csv = new List<List<string>>(); //Csv File (as string)
-            StringReader fileReader = new StringReader(CsvText, Aggregate, LineDelimiter);
+            StringReader fileReader = new StringReader(CsvText, 
+                CsvStyle.Aggregate, CsvStyle.LineDelimiter);
             while (!fileReader.EOF)
             {
                 Csv.Add(new List<string>());
-                StringReader lineReader = new StringReader(fileReader.Read(), Aggregate, Delimiter);
+                StringReader lineReader = new StringReader(fileReader.Read(),
+                    CsvStyle.Aggregate, CsvStyle.Delimiter);
                 //Add Cell (replace double Aggregate with single)
                 while (!lineReader.EOF)
-                    Csv.Last().Add(lineReader.Read()?.Replace(Aggregate + Aggregate, Aggregate));
+                    Csv.Last().Add(lineReader.Read()?.Replace(
+                        CsvStyle.Aggregate + CsvStyle.Aggregate,
+                        CsvStyle.Aggregate));
             }
-            //Get the Schema for this file
-            CsvSchema<T> DocumentSchema = new CsvSchema<T>(Csv[0]);
+            if (UseFirstRowAsHeaders)
+            {
+                //Get the Schema for this file
+                ColumnSchema = new List<CsvColumn>();
+                foreach (PropertyInfo property in 
+                    typeof(T).GetProperties().Where(p => !p.CsvIgnore()))
+                    ColumnSchema.Add(new CsvColumn(property, Csv[0]));
+            }
             //Serialize into T
             List<T> list = new List<T>();
-            for (int i = 1; i < Csv.Count; i++)
+            //Start at first row if not using first row as headers
+            for (int i = UseFirstRowAsHeaders ? 1 : 0; i < Csv.Count; i++)
             {
                 list.Add(new T());
-                foreach (CsvColumn column in DocumentSchema.ColumnSchema)
+                foreach (CsvColumn column in ColumnSchema)
+                {
                     if (column.ColumnNumber < Csv[i].Count)
-                        column.Property.SetValue(list.Last(),Csv[i][column.ColumnNumber]);
+                    {
+                        try
+                        {
+                            column.Property.SetValue(list.Last(),
+                                GetValue(column.Property, Csv[i][column.ColumnNumber]));
+                        }
+                        catch (System.FormatException)
+                        {
+                            //Throw parsing error exception
+                            throw new InvalidOperationException(
+                                $"Error Converting Value to desired format on " +
+                                $"Line Number {i}, Column '{column.ColumnName}'/" +
+                                $"Column No '{column.ColumnNumber}'. " +
+                                $"See inner exception for further details",
+                                new InvalidOperationException(
+                                    $"Target Type was {column.Property.PropertyType}. " +
+                                    $"Value was '{Csv[i][column.ColumnNumber]}'"));
+                        }
+                    }
+                }
             }
             return list.ToArray();
         }
 
-        public string Serialize(T[] data)
+        /// <summary>
+        /// Serializes Array of <typeparamref name="T"/>
+        /// string representation of Csv file
+        /// </summary>
+        /// <param name="data">Array of <typeparamref name="T"/> to serialize</param>
+        /// <param name="IncludeHeaderRow">
+        /// Indicates whether
+        /// to add a header row at the top of the file with the Column Names
+        /// </param>
+        /// <returns>Csv String Representation of <paramref name="data"/></returns>
+        public string Serialize(T[] data, bool IncludeHeaderRow = true)
         {
             List<string> lines = new List<string>();
             //Add the Header Row
-            lines.Add(string.Join(Delimiter,
-                from c in Schema.ColumnSchema
-                orderby c.ColumnNumber
-                select ConvertToCsvCell(c.ColumnName)));
+            if (IncludeHeaderRow)
+            {
+                lines.Add(string.Join(CsvStyle.Delimiter,
+                    from c in ColumnSchema
+                    orderby c.ColumnNumber, c.ColumnName
+                    select ConvertToCsvCell(c.ColumnName)));
+            }
             //Add all lines
             //For Each line convert it to a string
             //For Each cell use ConvertToCsvCell
             lines.AddRange(
                 from t in data
-                select string.Join(Delimiter,
-                    from e in Schema.ColumnSchema
-                    orderby e.ColumnNumber
-                    select ConvertToCsvCell(e.Property.GetValue(t)?.ToString() ?? string.Empty)
+                select string.Join(CsvStyle.Delimiter,
+                    from c in ColumnSchema
+                    orderby c.ColumnNumber, c.ColumnName
+                    select ConvertToCsvCell(c.Property.GetValue(t)?.ToString() ?? string.Empty)
                 ));
             //Ensure it ends with a LineDelimiter
-            return string.Join(LineDelimiter, lines) + LineDelimiter;
+            return string.Join(CsvStyle.LineDelimiter, lines) + CsvStyle.LineDelimiter;
         }
 
         /// <summary>
@@ -130,9 +164,46 @@ namespace CsvDocument
         /// <param name="val">Value to Convert</param>
         string ConvertToCsvCell(string val)
         {
-            if (!val.Contains(Aggregate) && !val.Contains(Delimiter) && !val.Contains(LineDelimiter))
+            if (!val.Contains(CsvStyle.Aggregate) &&
+                !val.Contains(CsvStyle.Delimiter) &&
+                !val.Contains(CsvStyle.LineDelimiter))
+            {
                 return val;
-            return $"{Aggregate}{val.Replace(Aggregate, Aggregate + Aggregate)}{Aggregate}";
+            }
+            //Surround Cell with Aggregate
+            //Replace any occurrences with Double Occurrences
+            return $"{CsvStyle.Aggregate}" +
+                $"{val.Replace(CsvStyle.Aggregate, CsvStyle.Aggregate + CsvStyle.Aggregate)}" +
+                $"{CsvStyle.Aggregate}";
+        }
+
+        /// <summary>
+        /// Converts <paramref name="val"/>
+        /// into <see cref="PropertyInfo.PropertyType"/>
+        /// </summary>
+        /// <param name="property">Property to Convert <paramref name="val"/> to</param>
+        /// <param name="val">Value to Convert</param>
+        /// <returns>Converted Value</returns>
+        object GetValue(PropertyInfo property, string val)
+        {
+            //If there is a better way
+            //to do this I haven't found it
+            if (property.PropertyType == typeof(string))
+                return val;
+            if (property.PropertyType == typeof(int))
+                return Convert.ToInt32(val);
+            if (property.PropertyType == typeof(bool))
+                return Convert.ToBoolean(val);
+            if (property.PropertyType == typeof(decimal))
+                return Convert.ToDecimal(val);
+            if (property.PropertyType == typeof(double))
+                return Convert.ToDouble(val);
+            if (property.PropertyType == typeof(DateTime))
+                return Convert.ToDateTime(val);
+            //If we reach this far then we have an unknown type
+            throw new InvalidOperationException(
+                nameof(property.PropertyType) + " is not supported at this time. " +
+                "Consider using a code behind property");
         }
     }
 }

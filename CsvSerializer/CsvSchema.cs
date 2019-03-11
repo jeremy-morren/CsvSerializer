@@ -8,104 +8,214 @@ using System.Reflection;
 namespace CsvDocument
 {
     /// <summary>
-    /// Represents CSV Column Properties
+    /// Set Csv Column Properties
     /// </summary>
     [AttributeUsage(AttributeTargets.Property)]
     class CsvColumnAttribute : Attribute
     {
         /// <summary>
-        /// Represents a CSV Column
+        /// Set Column Name
         /// </summary>
         /// <param name="columnName">Column Name</param>
         public CsvColumnAttribute(string columnName)
         {
             ColumnName = columnName;
+            ColumnNumber = -1;
+        }
+
+        /// <summary>
+        /// Sets Csv column Number
+        /// </summary>
+        /// <param name="columnNumber">0 index based Column Number</param>
+        public CsvColumnAttribute(int columnNumber)
+        {
+            ColumnNumber = columnNumber;
+        }
+
+        /// <summary>
+        /// Sets Csv Column Name and Number
+        /// </summary>
+        /// <param name="columnName">Csv Column Name</param>
+        /// <param name="columnNumber">0 index based Column Number</param>
+        public CsvColumnAttribute(string columnName, int columnNumber)
+        {
+            ColumnName = columnName;
+            ColumnNumber = columnNumber;
         }
 
         /// <summary>
         /// CSV Column Name
         /// </summary>
         internal string ColumnName { get; private set; }
+
+        /// <summary>
+        /// Csv Column Number
+        /// </summary>
+        /// <remarks>
+        /// Will be used if there are 2 instances
+        /// of <see cref="ColumnName"/>
+        /// </remarks>
+        internal int ColumnNumber { get; private set; }
     }
 
     /// <summary>
-    /// Represents a Csv File Schema for <typeparamref name="T"/>
+    /// Indicates that this column
+    /// should be ignore when class is
+    /// serialized to Csv
     /// </summary>
-    public class CsvSchema<T>
+    [AttributeUsage(AttributeTargets.Property)]
+    class CsvIgnoreAttribute : Attribute
     {
-        /// <summary>
-        /// Creates Schema for <typeparamref name="T"/>
-        /// from an existing Csv File
-        /// using <paramref name="HeaderRow"/>
-        /// </summary>
-        /// <param name="HeaderRow">Header Row of CSV File</param>
-        public CsvSchema(List<string> HeaderRow)
-        {
-            if (HeaderRow.Distinct().Count() != HeaderRow.Count())
-                throw new ArgumentOutOfRangeException(nameof(HeaderRow), null, "Duplicate Column Names");
-            ColumnSchema = new List<CsvColumn>();
-            PropertyInfo[] propertyInfo = typeof(T).GetProperties();
-            foreach (PropertyInfo property in propertyInfo)
-            {
-                string columnName = GetColumnName(property);
-                int index = HeaderRow.IndexOf(columnName);
-                if (index == -1)
-                    throw new ArgumentOutOfRangeException(nameof(columnName), columnName, "No Column Found in CSV Document");
-                ColumnSchema.Add(new CsvColumn(property, index, columnName));
-            }
-        }
-
-        /// <summary>
-        /// Creates Schema for <typeparamref name="T"/>
-        /// </summary>
-        public CsvSchema()
-        {
-            ColumnSchema = new List<CsvColumn>();
-            PropertyInfo[] propertyInfo = typeof(T).GetProperties();
-            int i = 0;
-            foreach (PropertyInfo property in propertyInfo)
-                ColumnSchema.Add(new CsvColumn(property, i++, GetColumnName(property)));
-        }
-
-        /// <summary>
-        /// Column Schema
-        /// </summary>
-        internal List<CsvColumn> ColumnSchema { get; private set; }
-
-        /// <summary>
-        /// Helper function to get the Column Name
-        /// </summary>
-        /// <param name="propertyInfo">Property to get Column Name for</param>
-        /// <remarks>
-        /// If the Property has CsvColumnAttribute 
-        /// </remarks>
-        string GetColumnName(PropertyInfo propertyInfo)
-        {
-            try
-            {
-                return propertyInfo.GetCustomAttribute<CsvColumnAttribute>(true).ColumnName;
-            }
-            catch (ArgumentNullException)
-            {
-                return propertyInfo.Name;
-            }
-        }
+        
     }
 
-    internal class CsvColumn
+    /// <summary>
+    /// Represent a Csv Column
+    /// </summary>
+    public class CsvColumn
     {
-        public CsvColumn(PropertyInfo property, int columnNumber, string columnName)
+        /// <summary>
+        /// Sets <see cref="ColumnName"/>
+        /// and <see cref="ColumnNumber"/>
+        /// from <paramref name="property"/> attributes
+        /// </summary>
+        /// <param name="property">class property</param>
+        public CsvColumn(PropertyInfo property)
         {
+            if (property.MemberType != MemberTypes.Property)
+                throw new ArgumentOutOfRangeException(nameof(property), null,
+                    "Property must be a class property");
             Property = property;
+            ColumnName = property.GetCsvColumnName();
+            ColumnNumber = property.GetCsvColumnNumber();
+        }
+
+        /// <summary>
+        /// Initializes class with Column Name,
+        /// Column Number and class Property
+        /// </summary>
+        /// <param name="property">class property</param>
+        /// <param name="columnNumber">Column Number (0-index based)</param>
+        /// <param name="columnName">Column Number</param>
+        public CsvColumn(PropertyInfo property, int columnNumber, string columnName)
+            : this(property)
+        {
             ColumnNumber = columnNumber;
             ColumnName = columnName;
         }
 
+        
+
+        /// <summary>
+        /// Sets <see cref="ColumnName"/>
+        /// and <see cref="ColumnNumber"/>
+        /// based on <paramref name="property"/> attributes
+        /// and <paramref name="HeaderRow"/>
+        /// </summary>
+        /// <param name="property">class property</param>
+        /// <param name="HeaderRow">Csv Header Row</param>
+        public CsvColumn(PropertyInfo property, List<string> HeaderRow)
+            : this(property)
+        {
+            IEnumerable<string> headers = HeaderRow.Where(s => s == ColumnName);
+            if (headers.Count() == 0)
+                throw new ArgumentOutOfRangeException(nameof(ColumnName), ColumnName,
+                    "Csv Column Name does not exist in Csv Headers.  " +
+                    "Check if you are using the Correct Style");
+            if (headers.Count() == 1)
+            {
+                ColumnNumber = HeaderRow.IndexOf(ColumnName);
+            }
+            else
+            {
+                //Validate Column Number
+                if (ColumnNumber == -1)
+                    throw new ArgumentOutOfRangeException(nameof(property), null,
+                        "Multiple Column Headers in file and no column number set");
+                if (HeaderRow[ColumnNumber] != ColumnName)
+                    throw new ArgumentOutOfRangeException(nameof(ColumnNumber), null,
+                        "Header name at Column Number does not match property Column Name");
+            }
+        }
+
+        
+
+        /// <summary>
+        /// class Property for this Csv Column
+        /// </summary>
         public PropertyInfo Property { get; private set; }
 
-        public int ColumnNumber { get; private set; }
+        /// <summary>
+        /// 0-index based Column Number
+        /// </summary>
+        /// <remarks>
+        /// When no column is set then defaults to -1
+        /// </remarks>
+        public int ColumnNumber { get; private set; } = -1;
 
+        /// <summary>
+        /// Csv Column Name
+        /// </summary>
         public string ColumnName { get; private set; }
     }
 
+    /// <summary>
+    /// Helper class for PropertyInfo Extensions
+    /// </summary>
+    static internal class PropertyInfoExtensions
+    {
+        /// <summary>
+        /// Gets the Csv Column Name
+        /// </summary>
+        /// <returns>
+        /// <see cref="CsvColumnAttribute.ColumnName"/> 
+        /// if present for <paramref name="property"/>,
+        /// otherwise <see cref="PropertyInfo.Name"/>
+        /// </returns>
+        public static string GetCsvColumnName(this PropertyInfo property)
+        {
+            try
+            {
+                return property.GetCustomAttribute<CsvColumnAttribute>(true).ColumnName;
+            }
+            catch (NullReferenceException)
+            {
+                return property.Name;
+            }
+        }
+
+        /// <summary>
+        /// Gets the Csv Column Number
+        /// to use when serializing to Csv
+        /// </summary>
+        /// <returns>
+        /// <see cref="CsvColumnAttribute.ColumnNumber"/>
+        /// if present against <paramref name="property"/>,
+        /// otherwise -1
+        /// </returns>
+        public static int GetCsvColumnNumber(this PropertyInfo property)
+        {
+            try
+            {
+                return property.GetCustomAttribute<CsvColumnAttribute>(true).ColumnNumber;
+            }
+            catch (NullReferenceException)
+            {
+                return -1;
+            }
+        }
+
+        /// <summary>
+        /// Gets a value indicating whether
+        /// <paramref name="property"/> should
+        /// be ignored when serializing to Csv
+        /// </summary>
+        /// <returns>
+        /// true if <see cref="CsvIgnoreAttribute"/>
+        /// is set against <paramref name="property"/>,
+        /// otherwise false
+        /// </returns>
+        public static bool CsvIgnore(this PropertyInfo property)
+            => property.GetCustomAttribute<CsvIgnoreAttribute>(true) != null;
+    }
 }

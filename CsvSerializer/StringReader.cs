@@ -151,7 +151,7 @@ namespace CsvDocument
         { get => CurrentIndex == 0 ? false : CurrentIndex == Text.Length; }
     }
 
-    static class StringExtensions
+    internal static class StringExtensions
     {
         /// <summary>
         /// Returns a string
@@ -164,7 +164,7 @@ namespace CsvDocument
         /// Allow me to ask why this isn't included in
         /// the standard library?
         /// </remarks>
-        public static string Splice(this string str, int startIndex, int endIndex)
+        internal static string Splice(this string str, int startIndex, int endIndex)
         {
             if (startIndex < 0 || startIndex >= str.Length)
                 throw new ArgumentOutOfRangeException(nameof(startIndex), startIndex,

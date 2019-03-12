@@ -1,8 +1,8 @@
 <?xml version="1.0"?>
 <package >
   <metadata>
-    <id>$id$</id>
-    <version>0.9.0.0</version>
+	<id>Jeremy.Morren.CsvSerializer</id>
+    <version>0.9.0.1</version>
     <title>Jeremy.Morren.CsvSerializer</title>
     <authors>Jeremy Morren</authors>
     <owners>Jeremy Morren</owners>

@@ -11,7 +11,7 @@ namespace CsvDocument
     /// Set Csv Column Properties
     /// </summary>
     [AttributeUsage(AttributeTargets.Property)]
-    class CsvColumnAttribute : Attribute
+    public class CsvColumnAttribute : Attribute
     {
         /// <summary>
         /// Set Column Name
@@ -64,7 +64,7 @@ namespace CsvDocument
     /// serialized to Csv
     /// </summary>
     [AttributeUsage(AttributeTargets.Property)]
-    class CsvIgnoreAttribute : Attribute
+    public class CsvIgnoreAttribute : Attribute
     {
         
     }

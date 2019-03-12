@@ -1,0 +1,13 @@
+<?xml version="1.0"?>
+<package >
+  <metadata>
+    <id>$id$</id>
+    <version>0.9.0.0</version>
+    <title>Jeremy.Morren.CsvSerializer</title>
+    <authors>Jeremy Morren</authors>
+    <owners>Jeremy Morren</owners>
+    <description>Serializes class to and from CSV</description>
+    <releaseNotes>Initial Launch.</releaseNotes>
+    <copyright>Copyright 2019</copyright>
+  </metadata>
+</package>

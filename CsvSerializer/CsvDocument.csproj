@@ -7,7 +7,7 @@
     <ProjectGuid>{694038A2-D68D-468F-BE88-DF446E3246EE}</ProjectGuid>
     <OutputType>Library</OutputType>
     <RootNamespace>CsvSerializer</RootNamespace>
-    <AssemblyName>CsvSerializer</AssemblyName>
+    <AssemblyName>Jeremy.Morren.CsvSerializer</AssemblyName>
     <TargetFrameworkVersion>v4.6.1</TargetFrameworkVersion>
     <FileAlignment>512</FileAlignment>
     <AutoGenerateBindingRedirects>true</AutoGenerateBindingRedirects>

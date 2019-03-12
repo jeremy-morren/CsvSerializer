@@ -9,7 +9,7 @@ using System.Runtime.InteropServices;
 [assembly: AssemblyDescription("Serializes and Deserializes Csv Files")]
 [assembly: AssemblyConfiguration("")]
 [assembly: AssemblyCompany("Jeremy Morren")]
-[assembly: AssemblyProduct("CsvSerializer")]
+[assembly: AssemblyProduct("Jeremy.Morren.CsvSerializer")]
 [assembly: AssemblyCopyright("Copyright ©  2019")]
 [assembly: AssemblyTrademark("")]
 [assembly: AssemblyCulture("")]

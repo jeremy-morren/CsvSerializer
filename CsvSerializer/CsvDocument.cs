@@ -24,7 +24,7 @@ namespace CsvDocument
             //with Default Values
             ColumnSchema = new List<CsvColumn>();
             foreach (PropertyInfo property in 
-                typeof(T).GetProperties().Where(p => !p.CsvIgnore()))
+                typeof(T).GetProperties().Where(p => !p.CsvIgnore() && p.PropertyType.IsPrimitive))
                 ColumnSchema.Add(new CsvColumn(property));
             CsvStyle = new CsvStyle(CsvCharacterStyle.Windows);
         }
@@ -86,7 +86,7 @@ namespace CsvDocument
                 //Get the Schema for this file
                 ColumnSchema = new List<CsvColumn>();
                 foreach (PropertyInfo property in 
-                    typeof(T).GetProperties().Where(p => !p.CsvIgnore()))
+                    typeof(T).GetProperties().Where(p => !p.CsvIgnore() && p.PropertyType.IsPrimitive))
                     ColumnSchema.Add(new CsvColumn(property, Csv[0]));
             }
             //Serialize into T
@@ -186,22 +186,18 @@ namespace CsvDocument
         /// <returns>Converted Value</returns>
         object GetValue(PropertyInfo property, string val)
         {
-            //If there is a better way
-            //to do this I haven't found it
-            if (property.PropertyType == typeof(string))
-                return val;
-            if (property.PropertyType == typeof(Int32))
-                return Convert.ToInt32(val);
-            if (property.PropertyType == typeof(Int64))
-                return Convert.ToInt64(val);
-            if (property.PropertyType == typeof(bool))
-                return Convert.ToBoolean(val);
-            if (property.PropertyType == typeof(decimal))
-                return Convert.ToDecimal(val);
-            if (property.PropertyType == typeof(double))
-                return Convert.ToDouble(val);
-            if (property.PropertyType == typeof(DateTime))
-                return Convert.ToDateTime(val);
+            Type propertyType = property.PropertyType;
+            //Handle Null Types
+            if (Nullable.GetUnderlyingType(property.PropertyType) != null)
+            {
+                if (val == string.Empty || val == null)
+                    return null;
+                else
+                    propertyType = Nullable.GetUnderlyingType(property.PropertyType);
+            }
+            //Use Convert
+            //It should throw an exception if there is a parsing error
+            Convert.ChangeType(val, propertyType);
             //If we reach this far then we have an unknown type
             throw new InvalidOperationException(
                 $"Property Type {property.PropertyType.Name} " +

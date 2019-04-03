@@ -2,7 +2,7 @@
 <package >
   <metadata>
 	<id>Jeremy.Morren.CsvSerializer</id>
-    <version>0.9.0.2</version>
+    <version>0.9.0.4</version>
     <title>Jeremy.Morren.CsvSerializer</title>
     <authors>Jeremy Morren</authors>
     <owners>Jeremy Morren</owners>

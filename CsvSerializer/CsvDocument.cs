@@ -23,8 +23,7 @@ namespace CsvDocument
             //Initialize the Column Schema
             //with Default Values
             ColumnSchema = new List<CsvColumn>();
-            foreach (PropertyInfo property in 
-                typeof(T).GetProperties().Where(p => !p.CsvIgnore() && p.PropertyType.IsPrimitive))
+            foreach (PropertyInfo property in Properties)
                 ColumnSchema.Add(new CsvColumn(property));
             CsvStyle = new CsvStyle(CsvCharacterStyle.Windows);
         }
@@ -34,6 +33,26 @@ namespace CsvDocument
         /// </summary>
         /// <paramref name="csvStyle">Template Style</paramref>
         public CsvSerializer(CsvStyle csvStyle) : this()
+        {
+            CsvStyle = csvStyle;
+        }
+
+        /// <summary>
+        /// Initializes with Custom Column Schema
+        /// </summary>
+        /// <param name="columnSchema"><see cref="CsvColumn"/> schema</param>
+        public CsvSerializer(List<CsvColumn> columnSchema)
+        {
+            CsvStyle = new CsvStyle(CsvCharacterStyle.Windows);
+            ColumnSchema = columnSchema;
+        }
+
+        /// <summary>
+        /// Initializes with Custom CSV style and Column Schema
+        /// </summary>
+        /// <param name="csvStyle">Template CSV Style</param>
+        /// <param name="columnSchema"><see cref="CsvColumn"/> columnSchema</param>
+        public CsvSerializer(CsvStyle csvStyle, List<CsvColumn> columnSchema) : this(columnSchema)
         {
             CsvStyle = csvStyle;
         }
@@ -52,15 +71,42 @@ namespace CsvDocument
         public List<CsvColumn> ColumnSchema { get; set; }
 
         /// <summary>
+        /// DeSerializes text read from <paramref name="FileName"/>
+        /// to <see cref="IEnumerable{T}"/>
+        /// </summary>
+        /// <param name="FileName">Path to CSV File</param>
+        /// <param name="UseFirstRowAsHeaders">
+        /// When true, the First row of the CSV File will be used as column headers.
+        /// When false, the Column Index defined in <see cref="CsvColumnAttribute"/> will be used.
+        /// </param>
+        /// <returns></returns>
+        public IEnumerable<T> DeSerialize(string FileName, bool UseFirstRowAsHeaders = true)
+            => DeSerializeText(System.IO.File.ReadAllText(FileName), UseFirstRowAsHeaders);
+
+        /// <summary>
+        /// DeSerializes text of <paramref name="StreamReader"/>
+        /// to <see cref="IEnumerable{T}"/>
+        /// </summary>
+        /// <param name="StreamReader">Source <see cref="System.IO.StreamReader"/></param>
+        /// <param name="UseFirstRowAsHeaders">
+        /// When true, the First row of the CSV File will be used as column headers.
+        /// When false, the Column Index defined in <see cref="CsvColumnAttribute"/> will be used.
+        /// </param>
+        /// <returns><see cref="IEnumerable{T}"/> with values from <paramref name="StreamReader"/></returns>
+        public IEnumerable<T> DeSerialize(System.IO.StreamReader StreamReader, bool UseFirstRowAsHeaders = true)
+            => DeSerializeText(StreamReader.ReadToEnd(), UseFirstRowAsHeaders);
+
+        /// <summary>
         /// Deserializes <paramref name="CsvText"/>
         /// in Array of <typeparamref name="T"/>
         /// </summary>
         /// <param name="CsvText">Csv File Text</param>
         /// <param name="UseFirstRowAsHeaders">
-        /// Indicates whether the first row of the Csv File should be used as column Headers
+        /// When true, the First row of the CSV File will be used as column headers.
+        /// When false, the Column Index defined in <see cref="CsvColumnAttribute"/> will be used.
         /// </param>
         /// <returns>Array of <typeparamref name="T"/> with values from CSV File</returns>
-        public T[] DeSerialize(string CsvText, bool UseFirstRowAsHeaders = true)
+        private IEnumerable<T> DeSerializeText(string CsvText, bool UseFirstRowAsHeaders)
         {
             if (!UseFirstRowAsHeaders 
                 && ColumnSchema.Count(e => e.ColumnNumber == -1) > 0)
@@ -85,8 +131,7 @@ namespace CsvDocument
             {
                 //Get the Schema for this file
                 ColumnSchema = new List<CsvColumn>();
-                foreach (PropertyInfo property in 
-                    typeof(T).GetProperties().Where(p => !p.CsvIgnore() && p.PropertyType.IsPrimitive))
+                foreach (PropertyInfo property in Properties)
                     ColumnSchema.Add(new CsvColumn(property, Csv[0]));
             }
             //Serialize into T
@@ -123,16 +168,39 @@ namespace CsvDocument
         }
 
         /// <summary>
-        /// Serializes Array of <typeparamref name="T"/>
+        /// Writes CSV Representation of <paramref name="CSVData"/>
+        /// to <paramref name="FileName"/>
+        /// </summary>
+        /// <param name="FileName">Filepath to write CSV to</param>
+        /// <param name="CSVData"><see cref="IEnumerable{T}"/> of Values to Serialize to CSV</param>
+        /// <param name="IncludeHeaderRow">
+        /// Indicates whether to add a header row at the top of the file with the Column Names
+        /// </param>
+        public void Serialize(string FileName, IEnumerable<T> CSVData, bool IncludeHeaderRow = true)
+            => System.IO.File.WriteAllText(FileName, Serialize(CSVData, IncludeHeaderRow));
+
+        /// <summary>
+        /// Writes CSV Representation of <paramref name="CSVData"/>
+        /// to <paramref name="StreamWriter"/>
+        /// </summary>
+        /// <param name="StreamWriter"><see cref="System.IO.StreamWriter"/> destination to write CSV Text</param>
+        /// <param name="CSVData"><see cref="IEnumerable{T}"/> of Values to Serialize to CSV</param>
+        /// <param name="IncludeHeaderRow">
+        /// Indicates whether to add a header row at the top of the file with the Column Names
+        /// </param>
+        public void Serialize(System.IO.StreamWriter StreamWriter, IEnumerable<T> CSVData, bool IncludeHeaderRow = true)
+            => StreamWriter.Write(Serialize(CSVData, IncludeHeaderRow));
+
+        /// <summary>
+        /// Serializes <see cref="IEnumerable{T}"/> to
         /// string representation of Csv file
         /// </summary>
-        /// <param name="data">Array of <typeparamref name="T"/> to serialize</param>
+        /// <param name="Data"><see cref="IEnumerable{T}"/> to serialize</param>
         /// <param name="IncludeHeaderRow">
-        /// Indicates whether
-        /// to add a header row at the top of the file with the Column Names
+        /// Indicates whether to add a header row at the top of the file with the Column Names
         /// </param>
-        /// <returns>Csv String Representation of <paramref name="data"/></returns>
-        public string Serialize(T[] data, bool IncludeHeaderRow = true)
+        /// <returns>Csv String Representation of <paramref name="Data"/></returns>
+        private string Serialize(IEnumerable<T> Data, bool IncludeHeaderRow)
         {
             List<string> lines = new List<string>();
             //Add the Header Row
@@ -147,7 +215,7 @@ namespace CsvDocument
             //For Each line convert it to a string
             //For Each cell use ConvertToCsvCell
             lines.AddRange(
-                from t in data
+                from t in Data
                 select string.Join(CsvStyle.Delimiter,
                     from c in ColumnSchema
                     orderby c.ColumnNumber, c.ColumnName
@@ -195,14 +263,50 @@ namespace CsvDocument
                 else
                     propertyType = Nullable.GetUnderlyingType(property.PropertyType);
             }
+			if (property.PropertyType == typeof(string))
+				return val;
             //Use Convert
             //It should throw an exception if there is a parsing error
-            Convert.ChangeType(val, propertyType);
+            return Convert.ChangeType(val, propertyType);
             //If we reach this far then we have an unknown type
             throw new InvalidOperationException(
                 $"Property Type {property.PropertyType.Name} " +
                 $"is not supported at this time. " +
                 $"Consider using a code behind property");
+        }
+
+        /// <summary>
+        /// Gets the Properties relevant
+        /// to the Csv Serializer
+        /// </summary>
+        /// <remarks>
+        /// All Primitive types and <c>string</c>
+        /// </remarks>
+        IEnumerable<PropertyInfo> Properties
+        {
+            get
+            {
+                List<Type> IConvertibleTypes = new List<Type>
+                {
+                    typeof(byte),
+                    typeof(char),
+                    typeof(DateTime),
+                    typeof(decimal),
+                    typeof(double),
+                    typeof(int),
+                    typeof(SByte),
+                    typeof(Single),
+                    typeof(string),
+                    typeof(uint)
+                };
+                //Ensure we are using the underlying type for nullable types
+                return
+                    from p in typeof(T).GetProperties()
+                    where !p.CsvIgnore() &&
+                        IConvertibleTypes.Contains(Nullable.GetUnderlyingType(p.PropertyType) != null ?
+                                Nullable.GetUnderlyingType(p.PropertyType) : p.PropertyType)
+                    select p;
+            }
         }
     }
 }

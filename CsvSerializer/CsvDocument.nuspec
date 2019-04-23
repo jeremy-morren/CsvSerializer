@@ -2,12 +2,12 @@
 <package >
   <metadata>
 	<id>Jeremy.Morren.CsvSerializer</id>
-    <version>0.9.0.4</version>
+    <version>0.9.0.6</version>
     <title>Jeremy.Morren.CsvSerializer</title>
     <authors>Jeremy Morren</authors>
     <owners>Jeremy Morren</owners>
     <description>Serializes class to and from CSV</description>
-    <releaseNotes>Misc Bugfixes</releaseNotes>
+    <releaseNotes>Fixed missing XML Documentation</releaseNotes>
     <copyright>Copyright 2019</copyright>
   </metadata>
 </package>

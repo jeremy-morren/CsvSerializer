@@ -263,16 +263,19 @@ namespace CsvDocument
                 else
                     propertyType = Nullable.GetUnderlyingType(property.PropertyType);
             }
-			if (property.PropertyType == typeof(string))
+			if (propertyType == typeof(string))
 				return val;
+            //return a new instance of propertyType
+            if (val == null)
+                return Activator.CreateInstance(propertyType);
             //Use Convert
             //It should throw an exception if there is a parsing error
             return Convert.ChangeType(val, propertyType);
             //If we reach this far then we have an unknown type
             throw new InvalidOperationException(
-                $"Property Type {property.PropertyType.Name} " +
+                $"Property Type {propertyType.Name} " +
                 $"is not supported at this time. " +
-                $"Consider using a code behind property");
+                $"Consider using a code-behind property");
         }
 
         /// <summary>
@@ -289,6 +292,7 @@ namespace CsvDocument
                 List<Type> IConvertibleTypes = new List<Type>
                 {
                     typeof(byte),
+                    typeof(bool),
                     typeof(char),
                     typeof(DateTime),
                     typeof(decimal),

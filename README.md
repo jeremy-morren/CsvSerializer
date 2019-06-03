@@ -1,5 +1,7 @@
 # CsvSerializer
-This class Serializes and Deserializes Csv Files to Enumerable objects
+This class Serializes and Deserializes Csv Files to Enumerable objects.  The project is available from Nuget as "Jeremy.Morren.CsvSerializer".
+
+If you do install the above package or clone the above repo, please do not hesitate to contact me at jeremy.morren@outlook.com.  I would love to know why you are using it and what features should be added in future.
 
 For now, only primitive types are supported.  Getting started is as simple as:
 

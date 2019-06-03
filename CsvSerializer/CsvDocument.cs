@@ -2,7 +2,6 @@
 using System.Collections.Generic;
 using System.Linq;
 using System.Text;
-using System.Threading.Tasks;
 using System.Reflection;
 
 namespace CsvDocument
@@ -84,17 +83,17 @@ namespace CsvDocument
             => DeSerializeText(System.IO.File.ReadAllText(FileName), UseFirstRowAsHeaders);
 
         /// <summary>
-        /// DeSerializes text of <paramref name="StreamReader"/>
+        /// DeSerializes text of <paramref name="TextReader"/>
         /// to <see cref="IEnumerable{T}"/>
         /// </summary>
-        /// <param name="StreamReader">Source <see cref="System.IO.StreamReader"/></param>
+        /// <param name="TextReader">Source <see cref="System.IO.TextReader"/></param>
         /// <param name="UseFirstRowAsHeaders">
         /// When true, the First row of the CSV File will be used as column headers.
         /// When false, the Column Index defined in <see cref="CsvColumnAttribute"/> will be used.
         /// </param>
-        /// <returns><see cref="IEnumerable{T}"/> with values from <paramref name="StreamReader"/></returns>
-        public IEnumerable<T> DeSerialize(System.IO.StreamReader StreamReader, bool UseFirstRowAsHeaders = true)
-            => DeSerializeText(StreamReader.ReadToEnd(), UseFirstRowAsHeaders);
+        /// <returns><see cref="IEnumerable{T}"/> with values from <paramref name="TextReader"/></returns>
+        public IEnumerable<T> DeSerialize(System.IO.TextReader TextReader, bool UseFirstRowAsHeaders = true)
+            => DeSerializeText(TextReader.ReadToEnd(), UseFirstRowAsHeaders);
 
         /// <summary>
         /// Deserializes <paramref name="CsvText"/>
@@ -108,13 +107,13 @@ namespace CsvDocument
         /// <returns>Array of <typeparamref name="T"/> with values from CSV File</returns>
         private IEnumerable<T> DeSerializeText(string CsvText, bool UseFirstRowAsHeaders)
         {
-            if (!UseFirstRowAsHeaders 
+            if (!UseFirstRowAsHeaders
                 && ColumnSchema.Count(e => e.ColumnNumber == -1) > 0)
                 throw new InvalidOperationException("Column Number not set");
             if (CsvText == string.Empty)
                 return new T[0];
             List<List<string>> Csv = new List<List<string>>(); //Csv File (as string)
-            StringReader fileReader = new StringReader(CsvText, 
+            StringReader fileReader = new StringReader(CsvText,
                 CsvStyle.Aggregate, CsvStyle.LineDelimiter);
             while (!fileReader.EOF)
             {
@@ -181,15 +180,15 @@ namespace CsvDocument
 
         /// <summary>
         /// Writes CSV Representation of <paramref name="CSVData"/>
-        /// to <paramref name="StreamWriter"/>
+        /// to <paramref name="TextWriter"/>
         /// </summary>
-        /// <param name="StreamWriter"><see cref="System.IO.StreamWriter"/> destination to write CSV Text</param>
+        /// <param name="TextWriter"><see cref="System.IO.TextWriter"/> destination to write CSV Text</param>
         /// <param name="CSVData"><see cref="IEnumerable{T}"/> of Values to Serialize to CSV</param>
         /// <param name="IncludeHeaderRow">
         /// Indicates whether to add a header row at the top of the file with the Column Names
         /// </param>
-        public void Serialize(System.IO.StreamWriter StreamWriter, IEnumerable<T> CSVData, bool IncludeHeaderRow = true)
-            => StreamWriter.Write(Serialize(CSVData, IncludeHeaderRow));
+        public void Serialize(System.IO.TextWriter TextWriter, IEnumerable<T> CSVData, bool IncludeHeaderRow = true)
+            => TextWriter.Write(Serialize(CSVData, IncludeHeaderRow));
 
         /// <summary>
         /// Serializes <see cref="IEnumerable{T}"/> to
@@ -263,8 +262,8 @@ namespace CsvDocument
                 else
                     propertyType = Nullable.GetUnderlyingType(property.PropertyType);
             }
-			if (propertyType == typeof(string))
-				return val;
+            if (propertyType == typeof(string))
+                return val;
             //return a new instance of propertyType
             if (val == null)
                 return Activator.CreateInstance(propertyType);

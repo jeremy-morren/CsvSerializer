@@ -114,21 +114,32 @@ namespace CsvDocument
         /// </summary>
         /// <param name="property">class property</param>
         /// <param name="HeaderRow">Csv Header Row</param>
-        public CsvColumn(PropertyInfo property, List<string> HeaderRow)
+        /// <param name="strict">
+        /// Indicates whether to throw exception if no matching
+        /// column is found in <paramref name="HeaderRow"/>
+        /// </param>
+        internal CsvColumn(PropertyInfo property, List<string> HeaderRow, bool strict)
             : this(property)
         {
             IEnumerable<string> headers = HeaderRow.Where(s => s == ColumnName);
             if (headers.Count() == 0)
-                throw new ArgumentOutOfRangeException(nameof(ColumnName), ColumnName,
-                    "Csv Column Name does not exist in Csv Headers.  " +
-                    "Check if you are using the Correct Style");
-            if (headers.Count() == 1)
+            {
+                if (strict)
+                {
+                    throw new ArgumentOutOfRangeException(nameof(ColumnName), ColumnName,
+                        "Csv Column Name does not exist in Csv Headers.  " +
+                        "Check if you are using the Correct Style");
+                }
+                else
+                    ColumnNumber = -1; //Indicate we are ignoring this column
+            }   
+            else if (headers.Count() == 1)
             {
                 ColumnNumber = HeaderRow.IndexOf(ColumnName);
             }
             else
             {
-                //Validate Column Number
+                //Something is wrong
                 if (ColumnNumber == -1)
                     throw new ArgumentOutOfRangeException(nameof(property), null,
                         "Multiple Column Headers in file and no column number set");
@@ -170,7 +181,7 @@ namespace CsvDocument
         /// <returns>
         /// <see cref="CsvColumnAttribute.ColumnName"/> 
         /// if present for <paramref name="property"/>,
-        /// otherwise <see cref="PropertyInfo.Name"/>
+        /// otherwise PropertyInfo.Name
         /// </returns>
         public static string GetCsvColumnName(this PropertyInfo property)
         {

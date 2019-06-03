@@ -70,6 +70,15 @@ namespace CsvDocument
         public List<CsvColumn> ColumnSchema { get; set; }
 
         /// <summary>
+        /// Gets or sets a value
+        /// indicating whether an exception
+        /// should be thrown when a property
+        /// does not have a matching column found
+        /// in the CSV File (defaults to false)
+        /// </summary>
+        public bool Strict { get; set; } = false;
+
+        /// <summary>
         /// DeSerializes text read from <paramref name="FileName"/>
         /// to <see cref="IEnumerable{T}"/>
         /// </summary>
@@ -131,7 +140,7 @@ namespace CsvDocument
                 //Get the Schema for this file
                 ColumnSchema = new List<CsvColumn>();
                 foreach (PropertyInfo property in Properties)
-                    ColumnSchema.Add(new CsvColumn(property, Csv[0]));
+                    ColumnSchema.Add(new CsvColumn(property, Csv[0], Strict));
             }
             //Serialize into T
             List<T> list = new List<T>();
@@ -139,7 +148,8 @@ namespace CsvDocument
             for (int i = UseFirstRowAsHeaders ? 1 : 0; i < Csv.Count; i++)
             {
                 list.Add(new T());
-                foreach (CsvColumn column in ColumnSchema)
+                //Process all columns that we are not ignoring
+                foreach (CsvColumn column in ColumnSchema.Where(e => e.ColumnNumber != -1))
                 {
                     if (column.ColumnNumber < Csv[i].Count)
                     {

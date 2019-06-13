@@ -12,13 +12,6 @@ For now, only primitive properties are supported.  Getting started is as simple 
 	using System.Threading.Tasks;
 	using System.IO;
 	using CsvDocument;
-	using System;
-	using System.Collections.Generic;
-	using System.Linq;
-	using System.Text;
-	using System.Threading.Tasks;
-	using System.IO;
-	using CsvDocument;
 
 	namespace CsvTest
 	{

@@ -3,7 +3,7 @@ This class Serializes and Deserializes Csv Files to Enumerable objects.  The pro
 
 If you do install the above package or clone the above repo, please do not hesitate to contact me at jeremy.morren@outlook.com.  I would love to know why you are using it and what features should be added in future.
 
-For now, only primitive types are supported.  Getting started is as simple as:
+For now, only primitive properties are supported.  Getting started is as simple as:
 
 	using System;
 	using System.Collections.Generic;
@@ -30,7 +30,7 @@ For now, only primitive types are supported.  Getting started is as simple as:
 				string csv = "Boolean Column,Integer Column,Text Column\r\ntrue,5,Row 1\r\nfalse,1,Row 2\r\n";
 				CsvSerializer<CsvItem> serializer = new CsvSerializer<CsvItem>(); //New Serializer
 				StringReader reader = new StringReader(csv); //Create a Stream with Csv Text
-				IEnumerable<CsvItem> csvItems = new serializer.DeSerialize(reader); //Deserialize Csv Text
+				IEnumerable<CsvItem> csvItems = serializer.DeSerialize(reader); //Deserialize Csv Text
 				StringWriter writer = new StringWriter(); //Create a new Stream to write Csv Text to
 				serializer.Serialize(writer, csvItems); //Serialize Items back to Csv
 			}
